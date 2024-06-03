@@ -24,6 +24,7 @@ const client = new MongoClient(uri, {
     try {
       // Connect the client to the server	(optional starting in v4.7)
       const premiumMemberCollection = client.db("Assignment-no-12").collection("premium-member");
+      const successStoryCollection = client.db("Assignment-no-12").collection("successStory");
       app.get('/premiumMember' , async(req,res)=>{
         const {order} = req.query;
         let sort = {};
@@ -36,6 +37,20 @@ const client = new MongoClient(uri, {
         const result = await premiumMemberCollection.find().sort(sort).toArray();
         res.send(result);
     });
+
+    app.get('/successStory' , async (req , res) => {
+      const {order} = req.query;
+        let sort = {};
+        if(order === "descending"){
+           sort = {marriageDate: -1};
+        }
+        if(order === "ascending"){
+           sort = {marriageDate: 1};
+        }
+      const result = await successStoryCollection.find().sort(sort).toArray();
+      res.send(result)
+    })
+
 
 
     
