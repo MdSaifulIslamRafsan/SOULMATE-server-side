@@ -24,7 +24,18 @@ const client = new MongoClient(uri, {
     try {
       // Connect the client to the server	(optional starting in v4.7)
       const premiumMemberCollection = client.db("Assignment-no-12").collection("premium-member");
-       
+      app.get('/premiumMember' , async(req,res)=>{
+        const {order} = req.query;
+        let sort = {};
+        if(order === "descending"){
+           sort = {age: -1};
+        }
+        if(order === "ascending"){
+           sort = {age: 1};
+        }
+        const result = await premiumMemberCollection.find().sort(sort).toArray();
+        res.send(result);
+    });
 
 
     
