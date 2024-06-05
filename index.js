@@ -47,7 +47,17 @@ async function run() {
         res.send({token})
       });
 
-    
+      // user related api
+      app.post('/users', async(req , res) => {
+        const user = req.body;
+        const query = {email: user?.email}
+        const isExist = await usersCollection.findOne(query);
+        if (isExist) {
+          return 
+        }
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+      })
 
 
 
