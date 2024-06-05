@@ -1,13 +1,23 @@
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
+const jwt = require('jsonwebtoken');
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// middleware
 
-app.use(cors());
+// middleware
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://assignment-no-12-115fa.web.app",
+      "https://assignment-no-12-115fa.firebaseapp.com",
+    ]
+  })
+);
+app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.edk1eij.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -18,18 +28,30 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    const premiumMemberCollection = client
-      .db("Assignment-no-12")
-      .collection("premium-member");
-    const successStoryCollection = client
-      .db("Assignment-no-12")
-      .collection("successStory");
-      const boiDatasCollection = client
-      .db("Assignment-no-12")
-      .collection("boiDatas");
+    const premiumMemberCollection = client.db("Assignment-no-12").collection("premium-member");
+    const successStoryCollection = client.db("Assignment-no-12").collection("successStory");
+    const boiDatasCollection = client.db("Assignment-no-12").collection("boiDatas");
+    const usersCollection = client.db("Assignment-no-12").collection("users");
+
+
+      // jwt related api
+      app.post('/jwt', async(req , res)=>{
+        const user = req.body;
+        const token = jwt.sign(user , process.env.ACCESS_TOKEN_SECRET,{
+          expiresIn: '90d',
+        });
+        res.send({token})
+      });
+
+    
+
+
+
+
     app.get("/premiumMember", async (req, res) => {
       const { order } = req.query;
       let sort = {};
@@ -52,7 +74,7 @@ async function run() {
       if (order === "ascending") {
         sort = { marriageDate: 1 };
       }
-      const result = await successStoryCollection.find().sort().toArray();
+      const result = await successStoryCollection.find().sort(sort).toArray();
       res.send(result);
     });
 
