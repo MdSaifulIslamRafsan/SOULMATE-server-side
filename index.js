@@ -162,7 +162,12 @@ async function run() {
       res.send(result);
     });
     
-
+    app.delete('/favouritesBiodata/:id' , async(req , res)=>{
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)};
+      const result = await FavouritesBiodataCollection.deleteOne(query);
+      res.send(result);
+    })
     app.post('/favouritesBiodata' , async(req , res) => {
       const userInfo = req.body;
       const query = {biodata_id: userInfo?.biodata_id}
