@@ -32,47 +32,95 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    const premiumMemberCollection = client.db("Assignment-no-12").collection("premium-member");
+    
     const successStoryCollection = client.db("Assignment-no-12").collection("successStory");
-    const boiDatasCollection = client.db("Assignment-no-12").collection("boiDatas");
-    const usersCollection = client.db("Assignment-no-12").collection("users");
+    const boiDatasCollection = client.db("Assignment-no-12").collection("boiDatas"); 
 
 
       // jwt related api
       app.post('/jwt', async(req , res)=>{
+
         const user = req.body;
         const token = jwt.sign(user , process.env.ACCESS_TOKEN_SECRET,{
           expiresIn: '90d',
         });
         res.send({token})
       });
+// middleware
+     const verifyToken = (req, res, next) =>{
+      if(!req.headers.authorization){
+        return res.status(401).send({message: 'unauthorized access'});
+      }
+      const token = req.headers.authorization.split(' ')[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
+        if(err){
+          return res.status(401).send({message: 'unauthorized access'});
+        }
+        req.decoded = decoded;
+        next();
+      })
+     }
+
+     const verifyAdmin = async(req , res, next) => {
+      const email = req.decoded.email;
+      const query = {contact_email : email};
+      const user = await boiDatasCollection.findOne(query);
+      console.log(user);
+      if(user?.role !== 'admin'){
+        return res.status(403).send({message: 'forbidden access'});
+      }
+      next();
+     }
 
       // user related api
       app.post('/users', async(req , res) => {
+        
         const user = req.body;
         const query = {email: user?.email}
-        const isExist = await usersCollection.findOne(query);
+        const isExist = await boiDatasCollection.findOne(query);
         if (isExist) {
           return 
         }
-        const result = await usersCollection.insertOne(user);
+        const result = await boiDatasCollection.insertOne(user);
         res.send(result);
       });
 
-      app.get('/users', async(req, res) =>{
-        const result = await usersCollection.find().toArray();
-        res.send(result);
-      });
+      
+      app.get('/users/admin/:email',verifyToken,  async(req , res)=>{
+        const email = req.params.email;
+        if(email !== req.decoded.email){
+          return res.status(403).send({message: 'forbidden access'});
+        }
+        const query = {contact_email: email};
+        const user = await boiDatasCollection.findOne(query);
+        let admin = false;
+        if(user){
+          admin = user?.role === 'admin';
+        }
+        res.send({admin});
 
-      app.patch('/users/admin/:id', async(req ,res)=>{
+      })
+
+      app.patch('/users/admin/:id', verifyToken, verifyAdmin, async(req ,res)=>{
           const id = req.params.id;
           const filter = {_id : new ObjectId(id)}
           const updateDoc = {
             $set:{
-              adminRole: "admin"
+              role: "admin"
             }
           }
-          const result = await usersCollection.updateOne(filter , updateDoc);
+          const result = await boiDatasCollection.updateOne(filter , updateDoc);
+          res.send(result);
+      });
+      app.patch('/users/premium/:id', verifyToken, verifyAdmin, async(req ,res)=>{
+          const id = req.params.id;
+          const filter = {_id : new ObjectId(id)}
+          const updateDoc = {
+            $set:{
+              role: "premium"
+            }
+          }
+          const result = await boiDatasCollection.updateOne(filter , updateDoc);
           res.send(result);
       });
 
@@ -81,6 +129,7 @@ async function run() {
 
     app.get("/premiumMember", async (req, res) => {
       const { order } = req.query;
+      const query = {role: 'premium'}
       let sort = {};
       if (order === "descending") {
         sort = { age: -1 };
@@ -88,8 +137,15 @@ async function run() {
       if (order === "ascending") {
         sort = { age: 1 };
       }
-      const result = await premiumMemberCollection.find().sort(sort).toArray();
+      const result = await boiDatasCollection.find(query).sort(sort).toArray();
       res.send(result);
+    });
+    app.get("/detailsPage/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)}
+      const result = await boiDatasCollection.findOne(query);
+      res.send(result)
+
     });
 
     app.get("/successStory", async (req, res) => {
