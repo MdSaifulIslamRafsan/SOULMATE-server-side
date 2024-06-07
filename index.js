@@ -35,6 +35,7 @@ async function run() {
     
     const successStoryCollection = client.db("Assignment-no-12").collection("successStory");
     const boiDatasCollection = client.db("Assignment-no-12").collection("boiDatas"); 
+    const FavouritesBiodataCollection = client.db("Assignment-no-12").collection("Favourites-Biodata"); 
 
 
       // jwt related api
@@ -160,6 +161,24 @@ async function run() {
       const result = await successStoryCollection.find().sort(sort).toArray();
       res.send(result);
     });
+    
+
+    app.post('/favouritesBiodata' , async(req , res) => {
+      const userInfo = req.body;
+      const query = {biodata_id: userInfo?.biodata_id}
+      const isExist = await FavouritesBiodataCollection.findOne(query);
+      if(isExist){
+        return res.status(409).send({message: 'This data already exists in your favourite list.'})
+      }
+      const result = await FavouritesBiodataCollection.insertOne(userInfo);
+      res.send(result);
+    });
+
+    app.get('/favouritesBiodata' , async(req ,res)=>{
+      const result = await FavouritesBiodataCollection.find().toArray()
+      res.send(result);
+    })
+
 
     app.get("/boiDatas", async (req, res) => {
       const { ageMax, ageMin, division, type } = req.query;
