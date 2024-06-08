@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require('jsonwebtoken');
 require("dotenv").config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -18,6 +19,7 @@ app.use(
   })
 );
 app.use(express.json());
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.edk1eij.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -66,18 +68,18 @@ async function run() {
       const email = req.decoded.email;
       const query = {contact_email : email};
       const user = await boiDatasCollection.findOne(query);
-      console.log(user);
+     
       if(user?.role !== 'admin'){
         return res.status(403).send({message: 'forbidden access'});
       }
       next();
      }
-
+  
       // user related api
       app.post('/users', async(req , res) => {
         
         const user = req.body;
-        const query = {email: user?.email}
+        const query = {contact_email: user?.contact_email}
         const isExist = await boiDatasCollection.findOne(query);
         if (isExist) {
           return 
@@ -86,6 +88,8 @@ async function run() {
         res.send(result);
       });
 
+     
+
       
       app.get('/users/admin/:email',verifyToken,  async(req , res)=>{
         const email = req.params.email;
@@ -93,10 +97,10 @@ async function run() {
           return res.status(403).send({message: 'forbidden access'});
         }
         const query = {contact_email: email};
-        const user = await boiDatasCollection.findOne(query);
+        const userInfo = await boiDatasCollection.findOne(query);
         let admin = false;
-        if(user){
-          admin = user?.role === 'admin';
+        if(userInfo){
+          admin = userInfo?.role === 'admin';
         }
         res.send({admin});
 
@@ -125,8 +129,27 @@ async function run() {
           res.send(result);
       });
 
+      app.post('/create-payment-intent' , async(req, res) => {
+        const {price} = req.body;
+        const amount = parseInt(price * 100);
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount,
+      currency: 'usd',
+      payment_method_types: ['card'],
+        });
+        res.send({clientSecret: paymentIntent.client_secret})
+      })
 
-
+      app.get('/users/premium/:email', verifyToken  , async(req, res)=>{
+        const email = req.params.email;
+        const query = {contact_email: email}
+        const userInfo = await boiDatasCollection.findOne(query);
+        let premium = false;
+        if(userInfo){
+          premium = userInfo?.role === 'premium'
+        }
+        res.send({premium});
+    });
 
     app.get("/premiumMember", async (req, res) => {
       const { order } = req.query;
@@ -149,6 +172,8 @@ async function run() {
 
     });
 
+  
+
     app.get("/successStory", async (req, res) => {
       const { order } = req.query;
       let sort = {};
@@ -162,15 +187,15 @@ async function run() {
       res.send(result);
     });
     
-    app.delete('/favouritesBiodata/:id' , async(req , res)=>{
+    app.delete('/favouritesBiodata/:id', verifyToken , async(req , res)=>{
       const id = req.params.id;
       const query = {_id : new ObjectId(id)};
       const result = await FavouritesBiodataCollection.deleteOne(query);
       res.send(result);
     })
-    app.post('/favouritesBiodata' , async(req , res) => {
+    app.post('/favouritesBiodata',verifyToken , async(req , res) => {
       const userInfo = req.body;
-      const query = {biodata_id: userInfo?.biodata_id}
+      const query = {biodata_id: userInfo?.biodata_id , contact_email: userInfo?.contact_email}
       const isExist = await FavouritesBiodataCollection.findOne(query);
       if(isExist){
         return res.status(409).send({message: 'This data already exists in your favourite list.'})
@@ -179,8 +204,10 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/favouritesBiodata' , async(req ,res)=>{
-      const result = await FavouritesBiodataCollection.find().toArray()
+    app.get('/favouritesBiodata/:email', verifyToken , async(req ,res)=>{
+      const email = req.params.email;
+      const query = {contact_email: email}
+      const result = await FavouritesBiodataCollection.find(query).toArray();
       res.send(result);
     })
 
