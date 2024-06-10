@@ -146,9 +146,7 @@ async function run() {
       verifyAdmin,
       async (req, res) => {
         const id = req.params.id;
-        console.log(id);
-        const filter = { biodata_id: parseInt(id)};
-        console.log(filter);
+        const filter = { _id: new ObjectId(id)};
         const updateDoc = {
           $set: {
             status: "approved",
@@ -326,6 +324,27 @@ async function run() {
       const result = await boiDatasCollection.find(query).toArray();
       res.send(result);
     });
+    app.get("/boiData/:email", async (req, res) => {
+      const email = req.params.email;
+     const query = {contact_email: email}
+
+      const result = await boiDatasCollection.findOne(query);
+      res.send(result);
+    });
+    app.put('/Boidata/:id', verifyToken, async(req , res)=>{
+      const boidataInfo = req.body;
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const options = { upsert: true };
+
+      const updateDoc = {
+        $set: {
+          ...boidataInfo
+        },
+      };
+      const result = await boiDatasCollection.updateOne(query, updateDoc, options);
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -344,3 +363,4 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
+
