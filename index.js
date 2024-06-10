@@ -97,6 +97,22 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/count", async(req, res)=> {
+      const totalBoidata = await boiDatasCollection.countDocuments();
+      const maleQuery = {biodata_type : "Male"};
+      const maleBoidata = await boiDatasCollection.countDocuments(maleQuery);
+      const femaleQuery = {biodata_type : "Female"};
+      const femaleBoidata = await boiDatasCollection.countDocuments(femaleQuery);
+      let premiumQuery = {role: 'premium'}
+      const premiumBoidata = await boiDatasCollection.countDocuments(premiumQuery);
+      const revenue  = await contactRequestCollection.countDocuments();
+      const totalRevenue = revenue * 5;
+      const successfulMarriages = await successStoryCollection.countDocuments();
+      res.send({totalBoidata, maleBoidata , femaleBoidata , premiumBoidata , totalRevenue , successfulMarriages})
+    });
+
+    
+
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
@@ -292,11 +308,7 @@ async function run() {
       const result = await premiumRequestCollection.insertOne(premiumInfo);
       res.send(result);
     });
-    // app.get('/approvePremiumRequest', verifyToken , verifyAdmin, async (req , res) =>{
-    //   const result = await premiumRequestCollection.find().toArray();
-    //   res.send(result);
-    // });
-    
+  
     app.get("/successStory", async (req, res) => {
       const { order } = req.query;
       let sort = {};
