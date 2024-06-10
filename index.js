@@ -45,6 +45,9 @@ async function run() {
     const contactRequestCollection = client
       .db("Assignment-no-12")
       .collection("contactRequest");
+    const premiumRequestCollection = client
+      .db("Assignment-no-12")
+      .collection("premiumRequest");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -140,6 +143,7 @@ async function run() {
         res.send(result);
       }
     );
+    
     app.patch(
       "/users/contactRequest/:id",
       verifyToken,
@@ -199,6 +203,8 @@ async function run() {
       res.send(result);
     });
 
+  
+
     app.get("/ContactRequest", verifyToken , verifyAdmin, async (req, res) => {
       const result = await contactRequestCollection.aggregate([
         {
@@ -237,8 +243,26 @@ async function run() {
       ]).toArray();
       res.send(result);
     });
+    app.get("/approvePremiumRequest",   async (req, res) => {
+      const result = await premiumRequestCollection.aggregate([
+        
+        {
+          $lookup: {
+            from: "boiDatas",
+            localField: "biodata_id",
+            foreignField: "biodata_id",
+            as: "userData",
+          },
+        },
+       {
+         $unwind:'$userData'
+      }
+      ]).toArray();
+      res.send(result);
+    });
+  
 
-    app.post("/contactRequest", async (req, res) => {
+    app.post("/contactRequest", verifyToken, async (req, res) => {
       const contectInfo = req.body;
       const query = {
         email: contectInfo?.email,
@@ -253,7 +277,26 @@ async function run() {
       const result = await contactRequestCollection.insertOne(contectInfo);
       res.send(result);
     });
-
+    app.post("/premiumRequest", verifyToken, async (req, res) => {
+      const premiumInfo = req.body;
+      const query = {
+        email: premiumInfo?.email,
+        biodata_id: premiumInfo?.biodata_id,
+      };
+      const isExist = await premiumRequestCollection.findOne(query);
+      if (isExist) {
+        return res
+          .status(409)
+          .send({ message: "This data already exists in your contact list." });
+      }
+      const result = await premiumRequestCollection.insertOne(premiumInfo);
+      res.send(result);
+    });
+    // app.get('/approvePremiumRequest', verifyToken , verifyAdmin, async (req , res) =>{
+    //   const result = await premiumRequestCollection.find().toArray();
+    //   res.send(result);
+    // });
+    
     app.get("/successStory", async (req, res) => {
       const { order } = req.query;
       let sort = {};
