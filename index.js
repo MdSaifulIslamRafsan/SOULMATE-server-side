@@ -91,27 +91,36 @@ async function run() {
       if (isExist) {
         return;
       }
-      const totalUser = await boiDatasCollection.countDocuments();
-      const newUser = {...user , biodata_id: totalUser + 1}
-      const result = await boiDatasCollection.insertOne(newUser);
+
+      const result = await boiDatasCollection.insertOne(user);
       res.send(result);
     });
 
-    app.get("/count", async(req, res)=> {
-      const totalBoidata = await boiDatasCollection.countDocuments();
-      const maleQuery = {biodata_type : "Male"};
+    app.get("/count", async (req, res) => {
+      const query = { biodata_id: { $exists: true } };
+      const totalBoidata = await boiDatasCollection.countDocuments(query);
+      const maleQuery = { biodata_type: "Male" };
       const maleBoidata = await boiDatasCollection.countDocuments(maleQuery);
-      const femaleQuery = {biodata_type : "Female"};
-      const femaleBoidata = await boiDatasCollection.countDocuments(femaleQuery);
-      let premiumQuery = {role: 'premium'}
-      const premiumBoidata = await boiDatasCollection.countDocuments(premiumQuery);
-      const revenue  = await contactRequestCollection.countDocuments();
+      const femaleQuery = { biodata_type: "Female" };
+      const femaleBoidata = await boiDatasCollection.countDocuments(
+        femaleQuery
+      );
+      let premiumQuery = { role: "premium" };
+      const premiumBoidata = await boiDatasCollection.countDocuments(
+        premiumQuery
+      );
+      const revenue = await contactRequestCollection.countDocuments();
       const totalRevenue = revenue * 5;
       const successfulMarriages = await successStoryCollection.countDocuments();
-      res.send({totalBoidata, maleBoidata , femaleBoidata , premiumBoidata , totalRevenue , successfulMarriages})
+      res.send({
+        totalBoidata,
+        maleBoidata,
+        femaleBoidata,
+        premiumBoidata,
+        totalRevenue,
+        successfulMarriages,
+      });
     });
-
-    
 
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -159,20 +168,23 @@ async function run() {
         res.send(result);
       }
     );
-    
+
     app.patch(
       "/users/contactRequest/:id",
       verifyToken,
       verifyAdmin,
       async (req, res) => {
         const id = req.params.id;
-        const filter = { _id: new ObjectId(id)};
+        const filter = { _id: new ObjectId(id) };
         const updateDoc = {
           $set: {
             status: "approved",
           },
         };
-        const result = await contactRequestCollection.updateOne(filter, updateDoc);
+        const result = await contactRequestCollection.updateOne(
+          filter,
+          updateDoc
+        );
         res.send(result);
       }
     );
@@ -215,68 +227,114 @@ async function run() {
     app.get("/detailsPage/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await boiDatasCollection.findOne(query);
-      res.send(result);
+      const boidata = await boiDatasCollection.findOne(query);
+      const similarBoidataQuery = {
+        biodata_type: boidata?.biodata_type,
+        _id: {$ne: boidata?._id} ,
+      };
+      const similarBoidata = await boiDatasCollection
+        .find(similarBoidataQuery)
+        .toArray();
+
+      res.send({ boidata, similarBoidata });
     });
 
-  
-
-    app.get("/ContactRequest", verifyToken , verifyAdmin, async (req, res) => {
-      const result = await contactRequestCollection.aggregate([
-        {
-          $lookup: {
-            from: "boiDatas",
-            localField: "biodata_id",
-            foreignField: "biodata_id",
-            as: "contactData",
+    app.get("/ContactRequest", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await contactRequestCollection
+        .aggregate([
+          {
+            $lookup: {
+              from: "boiDatas",
+              localField: "biodata_id",
+              foreignField: "biodata_id",
+              as: "contactData",
+            },
           },
-        },
-       {
-         $unwind:'$contactData'
-      }
-      ]).toArray();
+          {
+            $unwind: "$contactData",
+          },
+        ])
+        .toArray();
       res.send(result);
     });
-    app.get("/myContactRequest/:email", verifyToken,  async (req, res) => {
+    app.get("/myContactRequest/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      const result = await contactRequestCollection.aggregate([
-        {
-          $match: {
-            email: email ,
-          }
-        },
-        {
-          $lookup: {
-            from: "boiDatas",
-            localField: "biodata_id",
-            foreignField: "biodata_id",
-            as: "contactData",
+      const result = await contactRequestCollection
+        .aggregate([
+          {
+            $match: {
+              email: email,
+            },
           },
-        },
-       {
-         $unwind:'$contactData'
-      }
-      ]).toArray();
+          {
+            $lookup: {
+              from: "boiDatas",
+              localField: "biodata_id",
+              foreignField: "biodata_id",
+              as: "contactData",
+            },
+          },
+          {
+            $unwind: "$contactData",
+          },
+        ])
+        .toArray();
       res.send(result);
     });
-    app.get("/approvePremiumRequest",   async (req, res) => {
-      const result = await premiumRequestCollection.aggregate([
-        
-        {
-          $lookup: {
-            from: "boiDatas",
-            localField: "biodata_id",
-            foreignField: "biodata_id",
-            as: "userData",
-          },
-        },
-       {
-         $unwind:'$userData'
+
+    app.get(
+      "/successInfoForAdmin",
+      verifyAdmin,
+      verifyToken,
+      async (req, res) => {
+        const result = await successStoryCollection
+          .aggregate([
+            {
+              $lookup: {
+                from: "boiDatas",
+                localField: "selfBiodataId",
+                foreignField: "biodata_id",
+                as: "selfUserData",
+              },
+            },
+            {
+              $lookup: {
+                from: "boiDatas",
+                localField: "partnerBiodataId",
+                foreignField: "biodata_id",
+                as: "partnerUserData",
+              },
+            },
+            {
+              $unwind: "$selfUserData",
+            },
+            {
+              $unwind: "$partnerUserData",
+            },
+          ])
+          .toArray();
+        res.send(result);
       }
-      ]).toArray();
+    );
+
+    app.get("/approvePremiumRequest", async (req, res) => {
+      const result = await premiumRequestCollection
+        .aggregate([
+          {
+            $lookup: {
+              from: "boiDatas",
+              localField: "biodata_id",
+              foreignField: "biodata_id",
+              as: "userData",
+            },
+          },
+          {
+            $unwind: "$userData",
+          },
+        ])
+        .toArray();
       res.send(result);
     });
-  
 
     app.post("/contactRequest", verifyToken, async (req, res) => {
       const contectInfo = req.body;
@@ -308,7 +366,7 @@ async function run() {
       const result = await premiumRequestCollection.insertOne(premiumInfo);
       res.send(result);
     });
-  
+
     app.get("/successStory", async (req, res) => {
       const { order } = req.query;
       let sort = {};
@@ -336,11 +394,9 @@ async function run() {
       };
       const isExist = await FavouritesBiodataCollection.findOne(query);
       if (isExist) {
-        return res
-          .status(409)
-          .send({
-            message: "This data already exists in your favourite list.",
-          });
+        return res.status(409).send({
+          message: "This data already exists in your favourite list.",
+        });
       }
       const result = await FavouritesBiodataCollection.insertOne(userInfo);
       res.send(result);
@@ -353,11 +409,30 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/boiDatas", async (req, res) => {
-      const { ageMax, ageMin, division, type } = req.query;
-      let query = {};
+    app.post("/successStory", verifyToken, async (req, res) => {
+      const successInfo = req.body;
+      const query = {
+        selfBiodataId: successInfo?.selfBiodataId,
+        partnerBiodataId: successInfo?.partnerBiodataId,
+      };
+      const isExist = await successStoryCollection.findOne(query);
+      if (isExist) {
+        return res
+          .status(409)
+          .send({ message: "This data already exists in your contact list." });
+      }
+      const result = await successStoryCollection.insertOne(successInfo);
+      res.send(result);
+    });
 
-      // Check for age range
+    app.get("/boiDatas", async (req, res) => {
+       const { ageMax, ageMin, division, type, email, page } = req.query;
+      const pageSize = 6; 
+
+      let query = {
+        contact_email: { $ne: email },
+      };
+
       if (ageMin && ageMax) {
         query.age = { $gte: parseInt(ageMin), $lte: parseInt(ageMax) };
       } else if (ageMin) {
@@ -366,40 +441,55 @@ async function run() {
         query.age = { $lte: parseInt(ageMax) };
       }
 
-      // Check for biodata_type
       if (type) {
         query.biodata_type = type;
       }
 
-      // Check for permanent_division_name
       if (division) {
         query.permanent_division_name = division;
       }
 
-      const result = await boiDatasCollection.find(query).toArray();
-      res.send(result);
+      const totalDocs = await boiDatasCollection.countDocuments(query);
+
+      const skip = (parseInt(page) - 1) * pageSize;
+      const limit = pageSize;
+
+      const result = await boiDatasCollection
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      res.json({ data: result, total: totalDocs , pageSize });
     });
+
+
     app.get("/boiData/:email", async (req, res) => {
       const email = req.params.email;
-     const query = {contact_email: email}
+      const query = { contact_email: email };
 
       const result = await boiDatasCollection.findOne(query);
       res.send(result);
     });
-    app.put('/Boidata/:id', verifyToken, async(req , res)=>{
+    app.put("/Boidata/:id", verifyToken, async (req, res) => {
       const boidataInfo = req.body;
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const options = { upsert: true };
+      const biodata_id = await boiDatasCollection.countDocuments();
 
       const updateDoc = {
         $set: {
-          ...boidataInfo
+          biodata_id,
+          ...boidataInfo,
         },
       };
-      const result = await boiDatasCollection.updateOne(query, updateDoc, options);
-      res.send(result)
-    })
+      const result = await boiDatasCollection.updateOne(
+        query,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -418,4 +508,3 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
-
