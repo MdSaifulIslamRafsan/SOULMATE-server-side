@@ -283,7 +283,7 @@ async function run() {
     });
 
     app.get(
-      "/successInfoForAdmin",
+      "/successInfoForAdmin",  verifyToken, verifyAdmin,
       async (req, res) => {
         const result = await successStoryCollection
           .aggregate([
@@ -315,7 +315,7 @@ async function run() {
       }
     );
 
-    app.get("/approvePremiumRequest", async (req, res) => {
+    app.get("/approvePremiumRequest", verifyToken, verifyAdmin, async (req, res) => {
       const result = await premiumRequestCollection
         .aggregate([
           {
@@ -365,7 +365,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/successStory", async (req, res) => {
+    app.get("/successStory",   async (req, res) => {
       const { order } = req.query;
       let sort = {};
       if (order === "descending") {
