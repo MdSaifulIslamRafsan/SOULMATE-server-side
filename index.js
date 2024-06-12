@@ -284,8 +284,6 @@ async function run() {
 
     app.get(
       "/successInfoForAdmin",
-      verifyAdmin,
-      verifyToken,
       async (req, res) => {
         const result = await successStoryCollection
           .aggregate([
@@ -426,13 +424,11 @@ async function run() {
     });
 
     app.get("/boiDatas", async (req, res) => {
-       const { ageMax, ageMin, division, type, email, page } = req.query;
-      const pageSize = 6; 
-
+      const { ageMax, ageMin, division, type, email } = req.query;
       let query = {
         contact_email: { $ne: email },
       };
-
+      // Check for age range
       if (ageMin && ageMax) {
         query.age = { $gte: parseInt(ageMin), $lte: parseInt(ageMax) };
       } else if (ageMin) {
@@ -441,28 +437,19 @@ async function run() {
         query.age = { $lte: parseInt(ageMax) };
       }
 
+      // Check for biodata_type
       if (type) {
         query.biodata_type = type;
       }
 
+      // Check for permanent_division_name
       if (division) {
         query.permanent_division_name = division;
       }
 
-      const totalDocs = await boiDatasCollection.countDocuments(query);
-
-      const skip = (parseInt(page) - 1) * pageSize;
-      const limit = pageSize;
-
-      const result = await boiDatasCollection
-        .find(query)
-        .skip(skip)
-        .limit(limit)
-        .toArray();
-      res.json({ data: result, total: totalDocs , pageSize });
+      const result = await boiDatasCollection.find(query).toArray();
+      res.send(result);
     });
-
-
     app.get("/boiData/:email", async (req, res) => {
       const email = req.params.email;
       const query = { contact_email: email };
