@@ -60,7 +60,7 @@ nodemon index.js
 
 
 ## Technologies Used
-- Frontend: React
+- Frontend: React , tailwind
 - Backend: Express
 - Database: MongoDB
 - Payment Gateway: Stripe
