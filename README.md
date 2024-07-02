@@ -16,7 +16,7 @@ The server-side of the matrimony website project is designed to handle data mana
 
 ```sh
 git clone https://github.com/MdSaifulIslamRafsan/SOULMATE-server-side.git
-cd SOULMATE-server-sid
+cd SOULMATE-server-side
 ```
 
 - Install Dependencies:
