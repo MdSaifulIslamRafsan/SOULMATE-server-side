@@ -427,6 +427,7 @@ async function run() {
       const { ageMax, ageMin, division, type, email } = req.query;
       let query = {
         contact_email: { $ne: email },
+        biodata_id: { $exists: true, $ne: "" }
       };
       // Check for age range
       if (ageMin && ageMax) {
