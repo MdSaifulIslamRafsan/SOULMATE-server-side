@@ -230,7 +230,7 @@ async function run() {
       const boidata = await boiDatasCollection.findOne(query);
       const similarBoidataQuery = {
         biodata_type: boidata?.biodata_type,
-        _id: {$ne: boidata?._id} ,
+        _id: { $ne: boidata?._id },
       };
       const similarBoidata = await boiDatasCollection
         .find(similarBoidataQuery)
@@ -283,7 +283,9 @@ async function run() {
     });
 
     app.get(
-      "/successInfoForAdmin",  verifyToken, verifyAdmin,
+      "/successInfoForAdmin",
+      verifyToken,
+      verifyAdmin,
       async (req, res) => {
         const result = await successStoryCollection
           .aggregate([
@@ -315,24 +317,29 @@ async function run() {
       }
     );
 
-    app.get("/approvePremiumRequest", verifyToken, verifyAdmin, async (req, res) => {
-      const result = await premiumRequestCollection
-        .aggregate([
-          {
-            $lookup: {
-              from: "boiDatas",
-              localField: "biodata_id",
-              foreignField: "biodata_id",
-              as: "userData",
+    app.get(
+      "/approvePremiumRequest",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await premiumRequestCollection
+          .aggregate([
+            {
+              $lookup: {
+                from: "boiDatas",
+                localField: "biodata_id",
+                foreignField: "biodata_id",
+                as: "userData",
+              },
             },
-          },
-          {
-            $unwind: "$userData",
-          },
-        ])
-        .toArray();
-      res.send(result);
-    });
+            {
+              $unwind: "$userData",
+            },
+          ])
+          .toArray();
+        res.send(result);
+      }
+    );
 
     app.post("/contactRequest", verifyToken, async (req, res) => {
       const contectInfo = req.body;
@@ -365,7 +372,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/successStory",   async (req, res) => {
+    app.get("/successStory", async (req, res) => {
       const { order } = req.query;
       let sort = {};
       if (order === "descending") {
@@ -427,7 +434,7 @@ async function run() {
       const { ageMax, ageMin, division, type, email } = req.query;
       let query = {
         contact_email: { $ne: email },
-        biodata_id: { $exists: true, $ne: "" }
+        biodata_id: { $exists: true, $ne: "" },
       };
       // Check for age range
       if (ageMin && ageMax) {
@@ -448,7 +455,10 @@ async function run() {
         query.permanent_division_name = division;
       }
 
-      const result = await boiDatasCollection.find(query).toArray();
+      const result = await boiDatasCollection
+        .find(query)
+        .sort({ biodata_id: 1 })
+        .toArray();
       res.send(result);
     });
     app.get("/boiData/:email", async (req, res) => {
